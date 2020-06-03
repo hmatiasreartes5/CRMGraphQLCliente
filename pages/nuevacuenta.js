@@ -1,10 +1,29 @@
-import React from 'react';
+import React,{useState} from 'react';
+import {useRouter} from 'next/router';
 import Layout from '../components/Layout';
 import {useFormik} from 'formik';
 import * as Yup from 'yup';
+import {useMutation,gql} from '@apollo/client';
+
+const NUEVO_USUARIO = gql`
+        mutation nuevoUsuario($input: UsuarioInput){
+            nuevoUsuario(input: $input){
+            nombre
+            apellido
+            email
+            }
+        }
+`;
 
 const NuevaCuenta = () => {
 
+    //state para el mensaje
+    const[mensaje,guardarMensaje]= useState(null);
+
+    const router = useRouter();
+
+    const [nuevoUsuario] = useMutation(NUEVO_USUARIO)
+    
     //validacion del formulario --- Muy similar al useState osea hace lo mismo pero me permite la validacion de inputs
     const formik = useFormik({
         initialValues: {
@@ -23,15 +42,51 @@ const NuevaCuenta = () => {
                         .required('El password es oblidatorio')
                         .min(6,'El password debe ser de al menos 6 caracteres')
         }),
-        onSubmit: valores => {
-            console.log('enviando');
-            console.log(valores);   
+        onSubmit: async valores => {
+            //console.log('enviando');
+            //console.log(valores);   
+            const {nombre,apellido,email,password} = valores
+
+            try {
+                const {data} = await nuevoUsuario({
+                    variables : {
+                        input: {
+                            nombre,
+                            apellido,
+                            email,
+                            password
+                        }
+                    }
+                });
+                //console.log(data);
+                //el usuario se creo correctamente
+                guardarMensaje(`Se creo correctamente el usuario: ${data.nuevoUsuario.nombre}`);
+                setTimeout(()=> {
+                    guardarMensaje(null)
+                    router.push('/login')
+                },4000)
+            } catch (error) {
+                guardarMensaje(error.message.replace('GraphQL error: ',''));
+                setTimeout(()=>{
+                    guardarMensaje(null)
+                },3000)
+                //console.log(error);
+            }
         }
     });
+
+    const mostrarMensaje = () => {
+        return(
+            <div className="bg-white py-2 px-3 w-full my-3 max-w-sm text-center mx-auto">
+                <p>{mensaje}</p>
+            </div>
+        )
+    }
 
     return ( 
         <>
             <Layout>
+                {mensaje && mostrarMensaje()}
                 <h1 className="text-center text-2xl text-white font-light">Nueva Cuenta</h1>
                 <div className="flex justify-center mt-5">
                     <div className="w-full max-w-sm">   
